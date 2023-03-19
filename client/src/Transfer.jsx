@@ -1,5 +1,10 @@
 import { useState } from "react";
 import server from "./server";
+import { ec as EC } from "elliptic";
+import { createHash } from "crypto";
+import { toHex } from "ethereum-cryptography/utils";
+
+const ec = new EC("secp256k1");
 
 function Transfer({ address, setBalance }) {
   const [sendAmount, setSendAmount] = useState("");
@@ -10,13 +15,22 @@ function Transfer({ address, setBalance }) {
   async function transfer(evt) {
     evt.preventDefault();
 
+    // Define the message and create the signature
+    const privateKey = ec.keyFromPrivate(address, "hex");
+    const message = "Hello, this is a test message!";
+    const messageHash = createHash("sha256").update(message).digest();
+    const messageHashHex = toHex(messageHash);
+    const signature = privateKey.sign(messageHash);
+
     try {
       const {
         data: { balance },
-      } = await server.post(`send`, {
+      } = await server.post("send", {
         sender: address,
         amount: parseInt(sendAmount),
         recipient,
+        signature: signature.toString("hex"),
+        message: messageHashHex,
       });
       setBalance(balance);
     } catch (ex) {
@@ -52,3 +66,4 @@ function Transfer({ address, setBalance }) {
 }
 
 export default Transfer;
+
